@@ -9,31 +9,26 @@
 
     "api": {
       "root": "apps/api",
-      "framework": "express"
+      "framework": "node",
+      "entrypoint": "src/server.ts"
     }
   },
 
   "rewrites": [
     {
-      "source": "/auth/(.*)",
+      "source": "/auth/:path*",
       "destination": {
         "service": "api"
       }
     },
     {
-      "source": "/tasks",
+      "source": "/tasks/:path*",
       "destination": {
         "service": "api"
       }
     },
     {
-      "source": "/tasks/(.*)",
-      "destination": {
-        "service": "api"
-      }
-    },
-    {
-      "source": "/agent/(.*)",
+      "source": "/agent/:path*",
       "destination": {
         "service": "api"
       }

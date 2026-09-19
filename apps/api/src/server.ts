@@ -42,3 +42,4 @@ app.listen(config.port, () => {
     `ActionMate API running on http://localhost:${config.port}`
   );
 });
+export default app;

@@ -2,11 +2,7 @@
 
 import { useState } from "react";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== "undefined"
-    ? window.location.origin
-    : "");
+const API_URL = "";
 
 export default function Home() {
   const [goal, setGoal] = useState(
