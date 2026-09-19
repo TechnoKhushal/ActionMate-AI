@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import session from "express-session";
 
-import { config } from "./config";
 import googleRoutes from "./routes/google";
 import taskRoutes from "./routes/tasks";
 
@@ -10,7 +9,10 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: [
+      "http://localhost:3000",
+      "https://action-mate-ai-main.vercel.app",
+    ],
     credentials: true,
   })
 );
@@ -19,9 +21,7 @@ app.use(express.json());
 
 app.use(
   session({
-    secret:
-      process.env.SESSION_SECRET ||
-      "actionmate-dev-secret",
+    secret: process.env.SESSION_SECRET || "actionmate-dev-secret",
     resave: false,
     saveUninitialized: false,
   })
@@ -36,11 +36,5 @@ app.get("/health", (_req, res) => {
 
 app.use("/auth", googleRoutes);
 app.use("/tasks", taskRoutes);
-
-app.listen(config.port, () => {
-  console.log(
-    `ActionMate API running on http://localhost:${config.port}`
-  );
-});
 
 export default app;

@@ -3,7 +3,7 @@
   "services": {
     "web": {
       "root": "apps/web",
-      "framework": "express"
+      "framework": "nextjs"
     },
     "api": {
       "root": "apps/api",
