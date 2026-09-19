@@ -35,7 +35,18 @@ function getTomorrowIndiaDate() {
   return `${year}-${month}-${day}`;
 }
 
-function parseRequestedTime(goal: string) {
+function parseRequestedTime(
+  goal: string
+):
+  | {
+      explicit: true;
+      hour: number;
+      minute: number;
+    }
+  | {
+      explicit: false;
+    }
+  | null {
   // 3:30 PM, 3 PM, 3:30pm, 3pm
   const amPmMatch = goal.match(
     /(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(AM|PM)\b/i
@@ -172,18 +183,21 @@ router.post("/", async (req, res) => {
       personName
     );
 
-    const contact =
-      contacts.find(
-        (item) => item.email
-      );
+    const contact = contacts.find(
+  (item) =>
+    typeof item.email === "string" &&
+    item.email.trim().length > 0
+);
 
-    if (!contact) {
-      return res.status(404).json({
-        status: "CONTACT_NOT_FOUND",
-        message:
-          `I couldn't find ${personName} in Google Contacts.`,
-      });
-    }
+if (!contact || typeof contact.email !== "string") {
+  return res.status(404).json({
+    status: "CONTACT_NOT_FOUND",
+    message:
+      `I couldn't find ${personName} with a valid email address in Google Contacts.`,
+  });
+}
+
+const attendeeEmail = contact.email;
 
     // -----------------------------
     // Tomorrow
@@ -197,12 +211,20 @@ router.post("/", async (req, res) => {
     // -----------------------------
 
     const requestedTime =
-      parseRequestedTime(goal);
+  parseRequestedTime(goal);
 
-    let startDateTime: Date;
-    let endDateTime: Date;
+if (!requestedTime) {
+  return res.status(400).json({
+    status: "INVALID_TIME",
+    message:
+      "I couldn't understand the requested meeting time.",
+  });
+}
 
-    if (requestedTime.explicit) {
+let startDateTime: Date;
+let endDateTime: Date;
+
+if (requestedTime.explicit) {
       // --------------------------------
       // EXACT TIME WAS REQUESTED
       // --------------------------------
@@ -312,14 +334,14 @@ router.post("/", async (req, res) => {
     // -----------------------------
 
     const meeting =
-      await createMeeting(
-        tokens.access_token,
-        tokens.refresh_token,
-        `Meeting with ${contact.name}`,
-        startDateTime.toISOString(),
-        endDateTime.toISOString(),
-        contact.email
-      );
+  await createMeeting(
+    tokens.access_token,
+    tokens.refresh_token,
+    `Meeting with ${contact.name}`,
+    startDateTime.toISOString(),
+    endDateTime.toISOString(),
+    attendeeEmail
+  );
 
     return res.json({
       status: "COMPLETED",

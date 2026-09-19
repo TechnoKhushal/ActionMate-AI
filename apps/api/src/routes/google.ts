@@ -66,9 +66,9 @@ router.get("/google/callback", async (req, res) => {
     const { tokens } = await oauth2Client.getToken(code);
 
     req.session.googleTokens = {
-  access_token: tokens.access_token,
-  refresh_token: tokens.refresh_token,
-  expiry_date: tokens.expiry_date,
+  access_token: tokens.access_token ?? undefined,
+  refresh_token: tokens.refresh_token ?? undefined,
+  expiry_date: tokens.expiry_date ?? undefined,
 };
 
 console.log("Google connected successfully.");
