@@ -1,69 +1,211 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:5000";
 
 export default function Home() {
+  const [goal, setGoal] = useState(
+    "Schedule a 30-minute meeting with Rahul tomorrow afternoon"
+  );
+
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState("");
+
+  async function connectGoogle() {
+    window.location.href =
+      `${API_URL}/auth/google`;
+  }
+
+  async function runTask() {
+    setLoading(true);
+    setResult(null);
+    setError("");
+
+    try {
+      const response = await fetch(
+        `${API_URL}/tasks`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            goal,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "Task failed"
+        );
+      }
+
+      setResult(data);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main className="min-h-screen bg-slate-950 text-white">
+      <div className="mx-auto max-w-4xl px-6 py-16">
+
+        <h1 className="text-5xl font-bold">
+          ActionMate
+        </h1>
+
+        <p className="mt-3 text-xl text-slate-400">
+          Your Autonomous AI Employee
+        </p>
+
+        <div className="mt-12 rounded-3xl border border-slate-800 bg-slate-900 p-8">
+
+          <label className="text-sm text-slate-400">
+            Give ActionMate a job
+          </label>
+
+          <textarea
+            value={goal}
+            onChange={(e) =>
+              setGoal(e.target.value)
+            }
+            rows={5}
+            className="mt-4 w-full rounded-2xl border border-slate-700 bg-slate-950 p-5 text-lg outline-none focus:border-slate-400"
+          />
+
+          <div className="mt-5 flex gap-3">
+
+            <button
+              onClick={connectGoogle}
+              className="rounded-xl border border-slate-700 px-5 py-3 hover:bg-slate-800"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              Connect Google
+            </button>
+
+            <button
+              onClick={runTask}
+              disabled={loading}
+              className="rounded-xl bg-white px-6 py-3 font-bold text-slate-950 hover:bg-slate-200 disabled:opacity-50"
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              {loading
+                ? "ActionMate is working..."
+                : "Give ActionMate a Job →"}
+            </button>
+
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        {error && (
+          <div className="mt-6 rounded-2xl border border-red-800 bg-red-950/40 p-5">
+            {error}
+          </div>
+        )}
+
+        {result && (
+          <div className="mt-6 rounded-3xl border border-slate-800 bg-slate-900 p-8">
+
+            <h2 className="text-2xl font-bold">
+              Action Proof
+            </h2>
+
+            <div className="mt-6 space-y-4">
+
+              <div>
+                <span className="text-slate-500">
+                  Status
+                </span>
+
+                <p className="font-semibold">
+                  {result.status}
+                </p>
+              </div>
+
+              {result.contact && (
+                <div>
+                  <span className="text-slate-500">
+                    Contact
+                  </span>
+
+                  <p>
+                    {result.contact.name}
+                  </p>
+
+                  <p className="text-slate-400">
+                    {result.contact.email}
+                  </p>
+                </div>
+              )}
+
+              {result.slot?.startDateTime && (
+                <div>
+                  <span className="text-slate-500">
+                    Verified time
+                  </span>
+
+                  <p>
+                    {new Date(
+                      result.slot.startDateTime
+                    ).toLocaleString("en-IN")}
+                  </p>
+
+                  <p className="text-slate-400">
+                    →
+                    {" "}
+                    {new Date(
+                      result.slot.endDateTime
+                    ).toLocaleString("en-IN")}
+                  </p>
+                </div>
+              )}
+
+              {result.meeting && (
+                <div>
+                  <span className="text-slate-500">
+                    Calendar
+                  </span>
+
+                  <p className="font-semibold">
+                    ✓ Meeting created
+                  </p>
+
+                  {result.meeting.htmlLink && (
+                    <a
+                      href={result.meeting.htmlLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-block underline"
+                    >
+                      Open Google Calendar event
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {result.message && (
+                <div className="rounded-xl bg-slate-950 p-4">
+                  {result.message}
+                </div>
+              )}
+
+            </div>
+          </div>
+        )}
+
+      </div>
+    </main>
   );
 }

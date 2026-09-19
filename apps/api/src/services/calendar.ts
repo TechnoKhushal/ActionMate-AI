@@ -7,7 +7,10 @@ export async function getCalendarEvents(
   timeMin: string,
   timeMax: string
 ) {
-  const auth = createGoogleClient(accessToken, refreshToken);
+  const auth = createGoogleClient(
+    accessToken,
+    refreshToken
+  );
 
   const calendar = google.calendar({
     version: "v3",
@@ -25,76 +28,29 @@ export async function getCalendarEvents(
   return response.data.items ?? [];
 }
 
-export async function createMeeting(
-  accessToken: string,
-  refreshToken: string | undefined,
-  title: string,
-  startDateTime: string,
-  endDateTime: string,
-  attendeeEmail: string
-) {
-  const auth = createGoogleClient(accessToken, refreshToken);
-
-  const calendar = google.calendar({
-    version: "v3",
-    auth,
-  });
-
-  const response = await calendar.events.insert({
-    calendarId: "primary",
-    sendUpdates: "all",
-    requestBody: {
-      summary: title,
-      start: {
-        dateTime: startDateTime,
-        timeZone: "Asia/Kolkata",
-      },
-      end: {
-        dateTime: endDateTime,
-        timeZone: "Asia/Kolkata",
-      },
-      attendees: [
-        {
-          email: attendeeEmail,
-        },
-      ],
-    },
-  });
-
-  return {
-    id: response.data.id,
-    htmlLink: response.data.htmlLink,
-    status: response.data.status,
-    summary: response.data.summary,
-  };
-}
 export async function findAvailableSlot(
   accessToken: string,
   refreshToken: string | undefined,
   date: string,
   durationMinutes: number,
-  windowStartHour = 12,
-  windowEndHour = 18
+  windowStartHour: number,
+  windowEndHour: number
 ) {
-  const timeZoneOffset = "+05:30";
+  const offset = "+05:30";
 
   const windowStart = new Date(
-    `${date}T${String(windowStartHour).padStart(2, "0")}:00:00${timeZoneOffset}`
+    `${date}T${String(windowStartHour).padStart(2, "0")}:00:00${offset}`
   );
 
   const windowEnd = new Date(
-    `${date}T${String(windowEndHour).padStart(2, "0")}:00:00${timeZoneOffset}`
+    `${date}T${String(windowEndHour).padStart(2, "0")}:00:00${offset}`
   );
 
   if (
     Number.isNaN(windowStart.getTime()) ||
     Number.isNaN(windowEnd.getTime())
   ) {
-    throw new Error("Invalid date");
-  }
-
-  if (windowEnd <= windowStart) {
-    throw new Error("Invalid availability window");
+    throw new Error("Invalid date or time window");
   }
 
   const events = await getCalendarEvents(
@@ -108,15 +64,11 @@ export async function findAvailableSlot(
     .map((event: any) => {
       const start = event.start?.dateTime
         ? new Date(event.start.dateTime)
-        : event.start?.date
-          ? new Date(`${event.start.date}T00:00:00${timeZoneOffset}`)
-          : null;
+        : null;
 
       const end = event.end?.dateTime
         ? new Date(event.end.dateTime)
-        : event.end?.date
-          ? new Date(`${event.end.date}T23:59:59${timeZoneOffset}`)
-          : null;
+        : null;
 
       if (!start || !end) {
         return null;
@@ -126,14 +78,19 @@ export async function findAvailableSlot(
     })
     .filter(
       (
-        period
-      ): period is { start: Date; end: Date } => period !== null
+        value
+      ): value is {
+        start: Date;
+        end: Date;
+      } => value !== null
     )
     .sort(
-      (a, b) => a.start.getTime() - b.start.getTime()
+      (a, b) =>
+        a.start.getTime() - b.start.getTime()
     );
 
-  const durationMs = durationMinutes * 60 * 1000;
+  const durationMs =
+    durationMinutes * 60 * 1000;
 
   let candidate = new Date(windowStart);
 
@@ -148,7 +105,6 @@ export async function findAvailableSlot(
         endDateTime: new Date(
           candidate.getTime() + durationMs
         ).toISOString(),
-        durationMinutes,
       };
     }
 
@@ -167,12 +123,174 @@ export async function findAvailableSlot(
       endDateTime: new Date(
         candidate.getTime() + durationMs
       ).toISOString(),
-      durationMinutes,
     };
   }
 
   return {
     available: false,
-    message: "No available slot in the requested window.",
+    message: "No available slot in this time window.",
+  };
+}
+
+export async function checkExactSlot(
+  accessToken: string,
+  refreshToken: string | undefined,
+  startDateTime: string,
+  endDateTime: string
+) {
+  const start = new Date(startDateTime);
+  const end = new Date(endDateTime);
+
+  const events = await getCalendarEvents(
+    accessToken,
+    refreshToken,
+    new Date(
+      start.getTime() - 60_000
+    ).toISOString(),
+    new Date(
+      end.getTime() + 60_000
+    ).toISOString()
+  );
+
+  const conflict = events.find(
+    (event: any) => {
+      const eventStart =
+        event.start?.dateTime
+          ? new Date(event.start.dateTime)
+          : null;
+
+      const eventEnd =
+        event.end?.dateTime
+          ? new Date(event.end.dateTime)
+          : null;
+
+      if (!eventStart || !eventEnd) {
+        return false;
+      }
+
+      return (
+        start < eventEnd &&
+        end > eventStart
+      );
+    }
+  );
+
+  return {
+    available: !conflict,
+    conflict: conflict ?? null,
+  };
+}
+
+export async function createMeeting(
+  accessToken: string,
+  refreshToken: string | undefined,
+  title: string,
+  startDateTime: string,
+  endDateTime: string,
+  attendeeEmail: string
+) {
+  const auth = createGoogleClient(
+    accessToken,
+    refreshToken
+  );
+
+  const calendar = google.calendar({
+    version: "v3",
+    auth,
+  });
+
+  const start = new Date(startDateTime);
+  const end = new Date(endDateTime);
+
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime())
+  ) {
+    throw new Error("Invalid meeting time");
+  }
+
+  // Convert the absolute UTC instant into an India-local
+  // calendar time such as 2026-09-20T15:00:00.
+  const indiaParts = new Intl.DateTimeFormat(
+    "en-GB",
+    {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }
+  ).formatToParts(start);
+
+  const indiaEndParts = new Intl.DateTimeFormat(
+    "en-GB",
+    {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    }
+  ).formatToParts(end);
+
+  function part(
+    parts: Intl.DateTimeFormatPart[],
+    type: Intl.DateTimeFormatPartTypes
+  ) {
+    return parts.find(
+      (item) => item.type === type
+    )?.value;
+  }
+
+  const startLocal =
+    `${part(indiaParts, "year")}-${part(indiaParts, "month")}-${part(indiaParts, "day")}` +
+    `T${part(indiaParts, "hour")}:${part(indiaParts, "minute")}:${part(indiaParts, "second")}`;
+
+  const endLocal =
+    `${part(indiaEndParts, "year")}-${part(indiaEndParts, "month")}-${part(indiaEndParts, "day")}` +
+    `T${part(indiaEndParts, "hour")}:${part(indiaEndParts, "minute")}:${part(indiaEndParts, "second")}`;
+
+  console.log("GOOGLE EVENT START:", startLocal);
+  console.log("GOOGLE EVENT END:", endLocal);
+
+  const response = await calendar.events.insert({
+    calendarId: "primary",
+    sendUpdates: "all",
+
+    requestBody: {
+      summary: title,
+
+      start: {
+        dateTime: startLocal,
+        timeZone: "Asia/Kolkata",
+      },
+
+      end: {
+        dateTime: endLocal,
+        timeZone: "Asia/Kolkata",
+      },
+
+      attendees: [
+        {
+          email: attendeeEmail,
+        },
+      ],
+    },
+  });
+
+  return {
+    id: response.data.id,
+    htmlLink: response.data.htmlLink,
+    status: response.data.status,
+    summary: response.data.summary,
+
+    start: response.data.start,
+    end: response.data.end,
   };
 }

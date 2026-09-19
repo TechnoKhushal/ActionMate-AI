@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks       Task[]
+  approvals   Approval[]
+  connections OAuthConnection[]
+  actionLogs  ActionLog[]
+}
+
+model OAuthConnection {
+  id                    String   @id @default(cuid())
+  userId                String
+  provider              String
+
+  providerAccountId     String?
+  email                 String?
+
+  encryptedAccessToken  String
+  encryptedRefreshToken String?
+
+  scopes                String[]
+  expiresAt             DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  userId      String
+  goal        String
+  status      String
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  steps      TaskStep[]
+  approvals  Approval[]
+  actionLogs ActionLog[]
+
+  @@index([userId, createdAt])
+}
+
+model TaskStep {
+  id        String   @id @default(cuid())
+  taskId    String
+  step      Int
+  tool      String
+  arguments Json
+  result    Json?
+  status    String
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, step])
+}
+
+model Approval {
+  id          String    @id @default(cuid())
+  userId      String
+  taskId      String
+  tool        String
+  arguments   Json
+  risk        String
+  reason      String
+  context     Json?
+  status      String
+  createdAt   DateTime  @default(now())
+  decidedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([taskId])
+}
+
+model ActionLog {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  action    String
+  status    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+  @@index([userId, createdAt])
+}
