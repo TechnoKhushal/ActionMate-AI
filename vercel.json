@@ -1,73 +1,49 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-
-  "services": "services": {
+  "services": {
     "web": {
       "root": "apps/web",
       "framework": "nextjs"
     },
     "api": {
       "root": "apps/api",
+      "framework": "express",
       "entrypoint": "src/server.ts"
     }
   },
   "rewrites": [
     {
-      "source": "/auth/:path*",
+      "source": "/api/(.*)",
       "destination": {
-        "service": "api"
+        "service": "api",
+        "path": "/api/$1"
       }
     },
     {
-      "source": "/tasks/:path*",
+      "source": "/auth/(.*)",
       "destination": {
-        "service": "api"
+        "service": "api",
+        "path": "/auth/$1"
       }
     },
     {
-      "source": "/agent/:path*",
+      "source": "/tasks/(.*)",
       "destination": {
-        "service": "api"
+        "service": "api",
+        "path": "/tasks/$1"
       }
     },
     {
-      "source": "/health",
+      "source": "/tasks",
       "destination": {
-        "service": "api"
-      }
-    },
-    {
-      "source": "/(.*)",
-      "destination": {
-        "service": "web"
-      }
-    }
-  ]
-}
-
-  "rewrites": [
-    {
-      "source": "/auth/:path*",
-      "destination": {
-        "service": "api"
-      }
-    },
-    {
-      "source": "/tasks/:path*",
-      "destination": {
-        "service": "api"
-      }
-    },
-    {
-      "source": "/agent/:path*",
-      "destination": {
-        "service": "api"
+        "service": "api",
+        "path": "/tasks"
       }
     },
     {
       "source": "/health",
       "destination": {
-        "service": "api"
+        "service": "api",
+        "path": "/health"
       }
     },
     {
